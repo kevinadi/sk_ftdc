@@ -12,8 +12,13 @@ ftdc data format:
     source: 1,
     ts: ...
 }
+
+Required environment variable:
+SK_FTDC_USER: Atlas username
+SK_FTDC_PWD: Atlas password
 '''
 
+import os
 import sys
 import pymongo
 from pprint import pprint
@@ -26,8 +31,10 @@ from sklearn import model_selection
 
 if __name__ == '__main__':
     ### Get ftdc data
-    conn = pymongo.MongoClient()
-    ftdc_raw = [(x['ftdc'], x['class']) for x in conn.test.ftdc.find()]
+    atlas_username = os.environ.get('SK_FTDC_USER')
+    atlas_pwd = os.environ.get('SK_FTDC_PWD')
+    conn = pymongo.MongoClient('mongodb://{user}:{pwd}@cluster0-shard-00-00-isvie.mongodb.net:27017,cluster0-shard-00-01-isvie.mongodb.net:27017,cluster0-shard-00-02-isvie.mongodb.net:27017/admin?replicaSet=Cluster0-shard-0&authSource=admin&ssl=true'.format(user=atlas_username, pwd=atlas_pwd))
+    ftdc_raw = [(x['ftdc'], x['class']) for x in conn.test.test_ftdc.find()]
     ftdc = [x[0] for x in ftdc_raw]
     target_classes = [x[1] for x in ftdc_raw]
     print 'Len ftdc:', len(ftdc_raw)
