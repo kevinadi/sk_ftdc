@@ -27,13 +27,28 @@ from sklearn import preprocessing
 from sklearn import ensemble
 from sklearn import feature_extraction
 from sklearn import model_selection
+import argparse
+import cPickle
 
 
 if __name__ == '__main__':
+    ### Parse argument
+    parser = argparse.ArgumentParser(description='Train RF model for FTDC data.')
+    parser.add_argument('--local', action='store_true', help='use local mongod for training')
+    parser.add_argument('--save', action='store_true', help='save the generated model to rf.model')
+    args = parser.parse_args()
+
+    ### Connection string
+    if args.local:
+        connstr = 'mongodb://localhost'
+    else:
+        atlas_username = os.environ.get('SK_FTDC_USER')
+        atlas_pwd = os.environ.get('SK_FTDC_PWD')
+        connstr = 'mongodb://{user}:{pwd}@cluster0-shard-00-00-isvie.mongodb.net:27017,cluster0-shard-00-01-isvie.mongodb.net:27017,cluster0-shard-00-02-isvie.mongodb.net:27017/admin?replicaSet=Cluster0-shard-0&authSource=admin&ssl=true'.format(user=atlas_username, pwd=atlas_pwd)
+    print 'Connecting to', connstr
+
     ### Get ftdc data
-    atlas_username = os.environ.get('SK_FTDC_USER')
-    atlas_pwd = os.environ.get('SK_FTDC_PWD')
-    conn = pymongo.MongoClient('mongodb://{user}:{pwd}@cluster0-shard-00-00-isvie.mongodb.net:27017,cluster0-shard-00-01-isvie.mongodb.net:27017,cluster0-shard-00-02-isvie.mongodb.net:27017/admin?replicaSet=Cluster0-shard-0&authSource=admin&ssl=true'.format(user=atlas_username, pwd=atlas_pwd))
+    conn = pymongo.MongoClient(connstr)
     ftdc_raw = [(x['ftdc'], x['class']) for x in conn.test.test_ftdc.find()]
     ftdc = [x[0] for x in ftdc_raw]
     target_classes = [x[1] for x in ftdc_raw]
@@ -72,3 +87,12 @@ if __name__ == '__main__':
     print 'Top features:'
     for x in sorted(zip(rf_model.feature_importances_, ss_coder.feature_names_), reverse=True)[:10]:
         print("%0.4f  %s" % x)
+
+    ### Model data structure
+    model = {}
+    model['classifier'] = rf_model
+    model['coder'] = ss_coder
+
+    ### Save model
+    if args.save:
+        cPickle.dump(model, open('rf.model', 'wb'))
