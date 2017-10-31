@@ -35,7 +35,9 @@ if __name__ == '__main__':
     ### Parse argument
     parser = argparse.ArgumentParser(description='Train RF model for FTDC data.')
     parser.add_argument('--local', action='store_true', help='use local mongod for training')
-    parser.add_argument('--save', action='store_true', help='save the generated model to rf.model')
+    parser.add_argument('--save', type=str, help='save the generated model to a file')
+    parser.add_argument('--database', '-d', type=str, help='training database name', default='test')
+    parser.add_argument('--collection', '-c', type=str, help='training collection name', default='test_ftdc')
     args = parser.parse_args()
 
     ### Connection string
@@ -49,23 +51,24 @@ if __name__ == '__main__':
 
     ### Get ftdc data
     conn = pymongo.MongoClient(connstr)
-    ftdc_raw = [(x['ftdc'], x['class']) for x in conn.test.test_ftdc.find()]
+    ftdc_raw = [(x['ftdc'], x['class']) for x in conn[args.database][args.collection].find({'class': {'$exists': True}})]
     ftdc = [x[0] for x in ftdc_raw]
     target_classes = [x[1] for x in ftdc_raw]
     print 'Len ftdc:', len(ftdc_raw)
-    print target_classes
+    print set(target_classes)
 
     ### Get feature vector
     ss_coder = feature_extraction.DictVectorizer(sparse=True)
     ss_coder.fit_transform(ftdc[0])
     ss_coded = ss_coder.transform(ftdc)
-    print 'ss_coded:', ss_coded.shape
 
     ### Train RF
     rf_model = ensemble.RandomForestClassifier(n_estimators=20)
-    ss_coded_train, ss_coded_test, target_classes_train, target_classes_test = model_selection.train_test_split(ss_coded, target_classes)
+    train_size = 0.75
+    test_size = 0.25
+    ss_coded_train, ss_coded_test, target_classes_train, target_classes_test = model_selection.train_test_split(ss_coded, target_classes, test_size=test_size, train_size=train_size)
     rf_model.fit(ss_coded_train, target_classes_train)
-    print 'target classes train:', len(target_classes_train), 'target classes test:', len(target_classes_test)
+    print 'Training data size:', len(target_classes_train), 'Test data size:', len(target_classes_test)
     print rf_model
 
     ### Print classification report
@@ -95,4 +98,4 @@ if __name__ == '__main__':
 
     ### Save model
     if args.save:
-        cPickle.dump(model, open('rf.model', 'wb'))
+        cPickle.dump(model, open(args.save, 'wb'))
