@@ -36,6 +36,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classify FTDC data.')
     parser.add_argument('model', type=str, help='model file to use')
     parser.add_argument('--local', action='store_true', help='use local mongod for input data')
+    parser.add_argument('--prob', action='store_true', help='print per-sample classification probability')
+    parser.add_argument('--database', '-d', type=str, help='database name', default='test')
+    parser.add_argument('--collection', '-c', type=str, help='collection name', default='test_ftdc')
+    parser.add_argument('--stat', action='store_true', help='print stats')
+    parser.add_argument('--full', action='store_true', help='print all classification results')
     args = parser.parse_args()
 
     ### Connection string
@@ -49,7 +54,7 @@ if __name__ == '__main__':
 
     ### Get ftdc data
     conn = pymongo.MongoClient(connstr)
-    ftdc_raw = [(x['ftdc'], x['class'], x['ts']) for x in conn.test.test_ftdc.find()]
+    ftdc_raw = [(x['ftdc'], x.get('class'), x['ts']) for x in conn[args.database][args.collection].find()]
     ftdc = [x[0] for x in ftdc_raw]
     target_classes = [x[1] for x in ftdc_raw]
     timestamps = [str(x[2]) for x in ftdc_raw]
@@ -67,26 +72,42 @@ if __name__ == '__main__':
 
     ### Classify
     print '\nPrediction'
-    for x in zip(timestamps, rf_model.predict(ss_coded)):
-        print '{0} {1}'.format(x[0].ljust(27),x[1])
+    if args.full:
+        for x in zip(timestamps, rf_model.predict(ss_coded)):
+            print '{0} {1}'.format(x[0].ljust(27), x[1])
+    else:
+        curr_class = None
+        prev_ts = None
+        for x in zip(timestamps, rf_model.predict(ss_coded)):
+            if curr_class == None:
+                print '{0}'.format(x[0].ljust(27)),
+                curr_class = x[1]
+            if x[1] != curr_class:
+                print '{0} {1}'.format(prev_ts.ljust(27), curr_class)
+                print '{0}'.format(x[0].ljust(27)),
+                curr_class = x[1]
+            prev_ts = x[0]
+        print '{0} {1}'.format(prev_ts.ljust(27), curr_class)
 
     ### Classification probabilities
-    print '\nPrediction probabilities'
-    for x in zip(timestamps, rf_model.predict_proba(ss_coded)):
-        print '{0} {1}'.format(x[0].ljust(27),x[1])
+    if args.prob:
+        print '\nPrediction probabilities'
+        for x in zip(timestamps, rf_model.predict_proba(ss_coded)):
+            print '{0} {1}'.format(x[0].ljust(27),x[1])
 
-    ### Print classification report
-    expected = target_classes
-    predicted = rf_model.predict(ss_coded)
+    if args.stat:
+        ### Print classification report
+        expected = target_classes
+        predicted = rf_model.predict(ss_coded)
 
-    ### Confusion matrix
-    print '\nConfusion matrix:'
-    print metrics.confusion_matrix(target_classes, predicted, labels=None, sample_weight=None)
+        ### Confusion matrix
+        print '\nConfusion matrix:'
+        print metrics.confusion_matrix(target_classes, predicted, labels=None, sample_weight=None)
 
-    ### Print rf_model
-    print metrics.classification_report(expected, predicted)
+        ### Print rf_model
+        print metrics.classification_report(expected, predicted)
 
-    ### Print cross-validation score
-    cv = 3
-    scores = model_selection.cross_val_score(rf_model, ss_coded, target_classes, cv=cv)
-    print("%d-fold cross-validation accuracy: %0.2f (+/- %0.2f)" % (cv, scores.mean(), scores.std() * 2))
+        ### Print cross-validation score
+        cv = 3
+        scores = model_selection.cross_val_score(rf_model, ss_coded, target_classes, cv=cv)
+        print("%d-fold cross-validation accuracy: %0.2f (+/- %0.2f)" % (cv, scores.mean(), scores.std() * 2))
