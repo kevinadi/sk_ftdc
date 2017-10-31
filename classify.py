@@ -41,7 +41,22 @@ if __name__ == '__main__':
     parser.add_argument('--collection', '-c', type=str, help='collection name', default='test_ftdc')
     parser.add_argument('--stat', action='store_true', help='print stats')
     parser.add_argument('--full', action='store_true', help='print all classification results')
+    parser.add_argument('--feat', type=int, help='print top features')
     args = parser.parse_args()
+
+    ### Load RF model
+    model = cPickle.load(open(args.model))
+    rf_model = model['classifier']
+    ss_coder = model['coder']
+    print '\nClasses:'
+    print rf_model.classes_
+
+    ### Print top features
+    if args.feat:
+        print '\nTop features:'
+        for x in sorted(zip(rf_model.feature_importances_, ss_coder.feature_names_), reverse=True)[:args.feat]:
+            print("%0.4f  %s" % x)
+        sys.exit(0)
 
     ### Connection string
     if args.local:
@@ -59,13 +74,6 @@ if __name__ == '__main__':
     target_classes = [x[1] for x in ftdc_raw]
     timestamps = [str(x[2]) for x in ftdc_raw]
     print 'Len ftdc:', len(ftdc_raw)
-
-    ### Load RF model
-    model = cPickle.load(open(args.model))
-    rf_model = model['classifier']
-    ss_coder = model['coder']
-    print '\nClasses:'
-    print rf_model.classes_
 
     ### Transform input data
     ss_coded = ss_coder.transform(ftdc)
