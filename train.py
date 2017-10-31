@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     ### Print top features
     print 'Top features:'
-    for x in sorted(zip(rf_model.feature_importances_, ss_coder.feature_names_), reverse=True)[:10]:
+    for x in sorted(zip(rf_model.feature_importances_, ss_coder.feature_names_), reverse=True)[:30]:
         print("%0.4f  %s" % x)
 
     ### Model data structure
