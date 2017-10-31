@@ -78,16 +78,21 @@ if __name__ == '__main__':
     else:
         curr_class = None
         prev_ts = None
+        frame_count = 0
         for x in zip(timestamps, rf_model.predict(ss_coded)):
+            frame_count += 1
             if curr_class == None:
                 print '{0}'.format(x[0].ljust(27)),
                 curr_class = x[1]
             if x[1] != curr_class:
-                print '{0} {1}'.format(prev_ts.ljust(27), curr_class)
+                print '{0}'.format(prev_ts.ljust(27)),
+                print '{0}'.format(str(frame_count).rjust(7)),
+                print '{0}'.format(curr_class)
                 print '{0}'.format(x[0].ljust(27)),
                 curr_class = x[1]
+                frame_count = 0
             prev_ts = x[0]
-        print '{0} {1}'.format(prev_ts.ljust(27), curr_class)
+        print '{0} {1} {2}'.format(prev_ts.ljust(27), str(frame_count).rjust(7), curr_class)
 
     ### Classification probabilities
     if args.prob:
