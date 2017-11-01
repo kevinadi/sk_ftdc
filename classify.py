@@ -42,6 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--stat', action='store_true', help='print stats')
     parser.add_argument('--full', action='store_true', help='print all classification results')
     parser.add_argument('--feat', type=int, help='print top features')
+    parser.add_argument('--csv', type=str, help='export as csv')
     args = parser.parse_args()
 
     ### Load RF model
@@ -101,6 +102,12 @@ if __name__ == '__main__':
                 frame_count = 0
             prev_ts = x[0]
         print '{0} {1} {2}'.format(prev_ts.ljust(27), str(frame_count).rjust(7), curr_class)
+
+    ### Dump CSV
+    if args.csv:
+        with open(args.csv, 'w') as f:
+            for x in zip(timestamps, rf_model.predict(ss_coded)):
+                f.write('{0},{1}\n'.format(x[0].ljust(27), x[1]))
 
     ### Classification probabilities
     if args.prob:
