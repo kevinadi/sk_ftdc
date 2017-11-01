@@ -29,7 +29,33 @@ from sklearn import feature_extraction
 from sklearn import model_selection
 import argparse
 import cPickle
+from pprint import pprint
 
+
+def merge_two_dicts(x, y):
+    '''Given two dicts, merge them into a new dict as a shallow copy.'''
+    '''https://stackoverflow.com/a/26853961/5619724'''
+    z = x.copy()
+    z.update(y)
+    return z
+
+def derivative(data):
+    deltas = []
+    delta = {}
+    for key in data[0]:
+        delta['delta_' + key] = 0
+    deltas.append(delta)
+    for idx in range(1, len(data)):
+        delta = {}
+        for key in data[idx]:
+            val1, val2 = data[idx].get(key), data[idx-1].get(key)
+            if val1 is None or val2 is None:
+                continue
+            delta['delta_' + key] = val1 - val2
+        deltas.append(delta)
+    for idx in range(len(data)):
+        data[idx] = merge_two_dicts(data[idx], deltas[idx])
+    return data
 
 if __name__ == '__main__':
     ### Parse argument
@@ -38,6 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--save', type=str, help='save the generated model to a file')
     parser.add_argument('--database', '-d', type=str, help='training database name', default='test')
     parser.add_argument('--collection', '-c', type=str, help='training collection name', default='test_ftdc')
+    parser.add_argument('--delta', action='store_true', help='use first derivative preprocessing')
     args = parser.parse_args()
 
     ### Connection string
@@ -56,6 +83,9 @@ if __name__ == '__main__':
     target_classes = [x[1] for x in ftdc_raw]
     print 'Len ftdc:', len(ftdc_raw)
     print set(target_classes)
+
+    if args.delta:
+        ftdc = derivative(ftdc)
 
     ### Get feature vector
     ss_coder = feature_extraction.DictVectorizer(sparse=True)
